@@ -24,12 +24,20 @@ warnings.filterwarnings('ignore')
 
 tf.config.run_functions_eagerly(True)
 
+
+#*************************************************************************************************************************************
+#Starter code: import dataset
+#*************************************************************************************************************************************
 import kagglehub
 
 # Download latest version
 path = kagglehub.dataset_download("jessicali9530/celeba-dataset")
 
 print("Path to dataset files:", path)
+
+#*************************************************************************************************************************************
+# starter code: read in datasets
+#*************************************************************************************************************************************
 
 kaggle_prefix = "" # Note: If we simply put empty string, then the entire code will run in google colab without any issues.
 
@@ -57,10 +65,17 @@ data['Bushy_Eyebrows'].replace({-1: 0}, inplace=True)
 # perform an inner join of the result with the partition data frame on image_id to obtain integrated partitions
 df = pd.merge(data, partition, on='image_id', how='inner')
 
+#*************************************************************************************************************************************
+#starter code: split partitions
+#*************************************************************************************************************************************
+
 train_df = df[df['partition'] == 0] #if partition number = 0, that goes into the train df variable
 test_df = df[df['partition'] == 1]
 val_df = df[df['partition'] == 2]
 
+#*************************************************************************************************************************************
+#starter code: sample partitions
+#*************************************************************************************************************************************
 train_df = train_df.sample(frac=0.1, random_state=42)
 train_df.head()
 print (len(train_df))
@@ -82,7 +97,9 @@ print(f"Training Data: \n{train_df.head(2)}\n\n")
 print(f"Validation Data: \n{val_df.head(2)}\n\n")
 print(f"Test Data: \n{test_df.head(2)}\n\n")
 
-print(f"Lengths of train, validation and test partitions: {len(train_df), len(test_df), len(val_df)}")
+#*************************************************************************************************************************************
+#starter code: Data generator class
+#*************************************************************************************************************************************
 
 # Data generator class - this is a key class that is used to batch the data so as to
 # reduce compute time as well as to fit training segments into available memory
@@ -133,7 +150,15 @@ class DataGenerator(tf.keras.utils.Sequence):
                 y[i,] = row[self.label_cols].values.astype(np.float32) # need to assign y[i,] accordingly to the row object to specify the target(s) for the query.
         return X, y
 
-# using vgg16 as feature extractor
+#*************************************************************************************************************************************
+# starter code: # lengths of dfs
+#*************************************************************************************************************************************
+print(f"Lengths of train, validation and test partitions: {len(train_df), len(test_df), len(val_df)}")
+
+#*************************************************************************************************************************************
+# starter code: # using vgg16 as feature extractor
+#*************************************************************************************************************************************
+
 vgg16 = tf.keras.applications.VGG16(input_shape=(218, 178, 3), include_top=False, weights='imagenet')
 vgg16.trainable = False
 
@@ -145,20 +170,37 @@ model = tf.keras.Sequential([
     tf.keras.layers.Dense(2, activation='sigmoid')
 ])
 
-# compiling the model
+#*************************************************************************************************************************************
+# starter code: compiling the model
+#*************************************************************************************************************************************
 model.compile(optimizer=SGD(learning_rate=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
 
-# creating the train, test and validation data generators
+#*************************************************************************************************************************************
+# starter code: creating the train, test and validation data generators
+#*************************************************************************************************************************************
 train_generator = DataGenerator(train_df,LABEL_COLS, batch_size=32, dim=(218,178), n_channels=3, n_classes=2, shuffle=False)
 test_generator = DataGenerator(test_df,LABEL_COLS, batch_size=32, dim=(218,178), n_channels=3, n_classes=2, shuffle=False)
 val_generator = DataGenerator(val_df,LABEL_COLS, batch_size=32, dim=(218,178), n_channels=3, n_classes=2, shuffle=False)
+
+#*************************************************************************************************************************************
+#starter code: checking test generator
+#*************************************************************************************************************************************
 
 import sys
 print(test_generator[0][0][0].shape)
 print(sys.getsizeof(test_generator[0][0][0]))
 print(test_generator[0][0][0])
 
+
+#*************************************************************************************************************************************
+#Starter code: evaluate model
+#*************************************************************************************************************************************
+
 print(model.evaluate(test_generator,batch_size=32))
+
+#*************************************************************************************************************************************
+#Starter code: predict on unseen data
+#*************************************************************************************************************************************
 
 prediction = model.predict(test_generator)
 test_array=test_df.to_numpy()
@@ -185,13 +227,22 @@ for i in range(test_size):
 print(f"test accuracy is: {(correct/test_size):.1%}")
 
 
+#*************************************************************************************************************************************
+#R1 - code to classify values as 1 or 0 easier
+#*************************************************************************************************************************************
+
 def classify_value(value, threshold):
     if value > threshold:
         return 1
     else:
         return 0
 
-#confusion matrix, currently only shows accuracy for one class = male
+
+#*************************************************************************************************************************************
+#R1 - Added some code to create a confusion matrix of the predictions
+#*************************************************************************************************************************************
+
+#confusion matrix currently only shows accuracy for one class = male
 
 from sklearn import metrics
 import matplotlib.pyplot as plt
